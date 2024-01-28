@@ -43,5 +43,3 @@ function slide($board, $from, $to) {
     if (!$board[$common[0]] && !$board[$common[1]] && !$board[$from] && !$board[$to]) return false;
     return min(len($board[$common[0]]), len($board[$common[1]])) <= max(len($board[$from]), len($board[$to]));
 }
-
-?>

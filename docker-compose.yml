@@ -13,17 +13,43 @@ services:
       - .:/var/www/html/
     depends_on:
       - db
+
   db:
     container_name: mysql_container
     image: mysql:5.7
     restart: always
     volumes:
-      - /var/lib/mysql
+      - ows-db:/var/lib/mysql
     environment:
       MYSQL_DATABASE: 'hive'
       MYSQL_ROOT_USER: 'root'
       MYSQL_ROOT_PASSWORD: 'Incognito153!'
       MYSQL_ALLOW_EMPTY_PASSWORD: yes
     ports:
-      # <Port exposed> : <MySQL Port running inside container>
       - '9906:3306'
+
+  jenkins:
+    build: ./jenkins/
+    container_name: jenkins_container
+    restart: on-failure
+    privileged: true
+    user: root
+    networks:
+      - jenkins
+    volumes:
+      - jenkins-data:/var/jenkins_home
+      - jenkins-docker-certs:/certs/client:ro
+    environment:
+      - DOCKER_HOST=tcp://docker:2376
+      - DOCKER_CERT_PAT=/certs/client
+      - DOCKER_TLS_VERIFY=1
+    ports:
+      - "8080:8080"
+
+volumes:
+  ows-db:
+  jenkins-data:
+  jenkins-docker-certs:
+
+networks:
+  jenkins:

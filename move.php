@@ -29,8 +29,8 @@ else {
             $next = explode(',', array_shift($queue));
             foreach ($GLOBALS['OFFSETS'] as $pq) {
                 list($p, $q) = $pq;
-                $p += $next[0];
-                $q += $next[1];
+                $p .= $next[0];
+                $q .= $next[1];
                 if (in_array("$p,$q", $all)) {
                     $queue[] = "$p,$q";
                     $all = array_diff($all, ["$p,$q"]);
@@ -66,4 +66,3 @@ else {
 
 header('Location: index.php');
 
-?>
