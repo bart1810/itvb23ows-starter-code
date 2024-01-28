@@ -1,56 +1,61 @@
-version: '3.8'
+version: '3'
 
 services:
-  php_app:
-    build:
-      context: .
-      dockerfile: ./Dockerfile
-    container_name: php_container
-    image: php:8.2-apache
+  hive_app:
+    build: ./app/
+    container_name: hive_container
+    command: php -S 0.0.0.0:80
     ports:
       - "8000:80"
-    volumes:
-      - .:/var/www/html/
     depends_on:
       - db
-
+    volumes:
+      - /var/www/html/
   db:
+    build: ./database/
     container_name: mysql_container
     image: mysql:5.7
     restart: always
     volumes:
-      - ows-db:/var/lib/mysql
+      - mysql-data:/var/lib/mysql
     environment:
       MYSQL_DATABASE: 'hive'
       MYSQL_ROOT_USER: 'root'
       MYSQL_ROOT_PASSWORD: 'Incognito153!'
-      MYSQL_ALLOW_EMPTY_PASSWORD: yes
     ports:
+      # <Port exposed> : <MySQL Port running inside container>
       - '9906:3306'
-
   jenkins:
-    build: ./jenkins/
     container_name: jenkins_container
-    networks:
-      - jenkins
-    volumes:
-      - jenkins-data:/var/jenkins_home
+    build: ./jenkins/
     ports:
       - "8080:8080"
-
-  sonarqube:
-    build: ./sonarqube/
+    depends_on:
+      - sonarqube
+    environment:
+      JENKINS_ADMIN_ID: bart
+      JENKINS_ADMIN_PASSWORD: admin
+      JENKINS_PORT: 80
+    volumes:
+      - jenkins-data:/var/jenkins_home
     networks:
-      sonar-network:
+      ows-hive:
         aliases:
-          - sq-server
+          - jenkins
+  sonarqube:
+    container_name: sonarqube_container
+    build: ./sonarqube/
+    image: sonarqube
     ports:
       - "9000:9000"
+    depends_on:
+      - db
+    networks:
+      - ows-hive
 
 volumes:
-  ows-db:
   jenkins-data:
+  mysql-data:
 
 networks:
-  jenkins:
-  sonar-network:
+  ows-hive:

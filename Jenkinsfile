@@ -1,26 +1,29 @@
 pipeline {
-    agent { label '!windows'}
+    agent { label '!windows' }
 
     stages {
         stage("SonarQube") {
             steps {
                 script {
-                    scannerHome = tool 'SonarQube'
+                    scannerHome = tool 'SonarQube Scanner'
                 }
                 echo "Start Sonar Scanner.."
                 withSonarQubeEnv('SonarQube') {
                 sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=hive"
+                    }
                 }
             }
-        }
-        stage("Build") {
+        stage("docker-compose up") {
             steps {
                 echo "Building application.."
                 echo "Build ID is ${BUILD_ID}"
+                sh "docker-compose up -d app"
+                echo "Application build"
             }
         }
-        stage("Test") {
+        stage("Testen met PHPUnit") {
             steps {
+                echo "Moet nog geïmplementeerd worden"
                 echo "Testing application.."
             }
         }
@@ -31,6 +34,9 @@ pipeline {
         }
     }
     post {
+        always {
+            sh "docker-compose down"
+        }
         success {
             echo "Build successful"
         }
