@@ -2,6 +2,17 @@ pipeline {
     agent { label '!windows'}
 
     stages {
+        stage("SonarQube") {
+            steps {
+                script {
+                    scannerHome = tool 'SonarQube Scanner'
+                }
+                echo "Start Sonar Scanner.."
+                withSonarQubeEnv('SonarQube') {
+                sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=hive"
+                }
+            }
+        }
         stage("Build") {
             steps {
                 echo "Building application.."

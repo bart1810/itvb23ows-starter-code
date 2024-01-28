@@ -46,6 +46,15 @@ services:
     ports:
       - "8080:8080"
 
+  sonarqube:
+    build: ./sonarqube/
+    networks:
+      sonar-network:
+        aliases:
+          - sq-server
+    ports:
+      - "9000:9000"
+
 volumes:
   ows-db:
   jenkins-data:
@@ -53,3 +62,4 @@ volumes:
 
 networks:
   jenkins:
+  sonar-network:
