@@ -1,14 +1,11 @@
 pipeline {
-    agent {
-        docker { image 'php:8.2-apache' }
-    }
+    agent { label '!windows'}
 
     stages {
         stage("Build") {
             steps {
                 echo "Building application.."
                 echo "Build ID is ${BUILD_ID}"
-                sh "php --version"
             }
         }
         stage("Test") {
