@@ -5,7 +5,7 @@ pipeline {
         stage("SonarQube") {
             steps {
                 script {
-                    scannerHome = tool 'SonarQube Scanner'
+                    scannerHome = tool 'SonarQube'
                 }
                 echo "Start Sonar Scanner.."
                 withSonarQubeEnv('SonarQube') {
