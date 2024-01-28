@@ -13,8 +13,8 @@
 namespace Composer;
 
 $GLOBALS['_composer_bin_dir'] = __DIR__;
-$GLOBALS['_composer_autoload_path'] = __DIR__ . '/..'.'/autoload.php';
-$GLOBALS['__PHPUNIT_ISOLATION_EXCLUDE_LIST'] = $GLOBALS['__PHPUNIT_ISOLATION_BLACKLIST'] = array(realpath(__DIR__ . '/..'.'/phpunit/phpunit/phpunit'));
+$GLOBALS['_composer_autoload_path'] = __DIR__ . '/..' . '/autoload.php';
+$GLOBALS['__PHPUNIT_ISOLATION_EXCLUDE_LIST'] = $GLOBALS['__PHPUNIT_ISOLATION_BLACKLIST'] = array(realpath(__DIR__ . '/vendor' .'/phpunit/phpunit/phpunit'));
 
 if (PHP_VERSION_ID < 80000) {
     if (!class_exists('Composer\BinProxyWrapper')) {
@@ -119,4 +119,4 @@ if (PHP_VERSION_ID < 80000) {
     }
 }
 
-return include __DIR__ . '/..'.'/phpunit/phpunit/phpunit';
+return include __DIR__ . '/vendor' .'/phpunit/phpunit/phpunit';

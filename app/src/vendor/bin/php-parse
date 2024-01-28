@@ -13,7 +13,7 @@
 namespace Composer;
 
 $GLOBALS['_composer_bin_dir'] = __DIR__;
-$GLOBALS['_composer_autoload_path'] = __DIR__ . '/..'.'/autoload.php';
+$GLOBALS['_composer_autoload_path'] = __DIR__ . '/..' . '/autoload.php';
 
 if (PHP_VERSION_ID < 80000) {
     if (!class_exists('Composer\BinProxyWrapper')) {
@@ -116,4 +116,4 @@ if (PHP_VERSION_ID < 80000) {
     }
 }
 
-return include __DIR__ . '/..'.'/nikic/php-parser/bin/php-parse';
+return include __DIR__ . '/vendor' .'/nikic/php-parser/bin/php-parse';

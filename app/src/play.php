@@ -10,7 +10,7 @@ $to = $_POST['to'];
 $player = $_SESSION['player'];
 $board = $_SESSION['board'];
 $hand = $_SESSION['hand'][$player];
-$db = include 'database.php';
+$db = include 'Database.php';
 $state = getState();
 
 if (!$hand[$piece])
