@@ -1,16 +1,14 @@
 <?php
 
-function get_state() {
+function getState(): string {
     return serialize([$_SESSION['hand'], $_SESSION['board'], $_SESSION['player']]);
 }
 
-function set_state($state) {
+function setState($state): void {
     list($a, $b, $c) = unserialize($state);
     $_SESSION['hand'] = $a;
     $_SESSION['board'] = $b;
     $_SESSION['player'] = $c;
 }
 
-return new mysqli('localhost', 'root', '', 'hive');
-
-?>
+return new mysqli('db', 'root', 'Incognito153!', 'hive');
