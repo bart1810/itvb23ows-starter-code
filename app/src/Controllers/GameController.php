@@ -9,15 +9,29 @@ class GameController {
     private Database $database;
     private ErrorController $errorController;
     private PlayerController $playerController;
-    public function __construct(Database $database) {
+    public function __construct(Database $database, PlayerController $playerController) {
         $this->database = $database;
         $this->errorController = new ErrorController();
-        $this->playerController = new PlayerController();
+        $this->playerController = $playerController;
     }
-
 
     public function getOffsets(): array {
         return $this->offsets;
+    }
+
+    public function getToPositions(): array {
+        $to = [];
+        foreach ($this->getOffsets() as $pq) {
+            foreach (array_keys($this->getBoard()) as $pos) {
+                $pq2 = explode(',', $pos);
+                $to[] = ($pq[0] + $pq2[0]).','.($pq[1] + $pq2[1]);
+            }
+        }
+        $to = array_unique($to);
+        if (!count($to)) {
+            $to[] = '0,0';
+        }
+        return $to;
     }
 
     public function getBoard() {
@@ -28,23 +42,6 @@ class GameController {
         $_SESSION['board'] = $board;
     }
 
-    public function getGameId() {
-        return $_SESSION['game_id'] ?? null;
-    }
-
-    public function setGameId($gameId): void {
-        $_SESSION['game_id'] = $gameId;
-    }
-
-    public function getLastMove() {
-        return $_SESSION['last_move'] ?? null;
-    }
-
-    public function setLastMove($move): void {
-        $_SESSION['last_move'] = $move;
-    }
-
-
     public function playPiece($piece, $to): void {
         if ($this->isValidPlay($piece, $to)) {
 
@@ -54,12 +51,22 @@ class GameController {
             $_SESSION['board'][$to] = [[$_SESSION['player'], $piece]];
             $_SESSION['hand'][$player][$piece]--;
 
-            $this->database->playPiece($to, $piece, $this->getGameId(), $this->getLastMove());
+            $this->database->playPiece($to, $piece);
 
             $this->playerController->switchPlayer();
 
-            $this->setLastMove($this->database->getInsertID());
+            $this->database->setLastMove($this->database->getInsertID());
+
         }
+    }
+
+    public function pass(): void {
+        $this->database->passTurn();
+        $this->database->setLastMove($this->database->getInsertID());
+
+        $this->playerController->switchPlayer();
+
+
     }
 
     public function movePiece($from, $to): void {
@@ -73,20 +80,20 @@ class GameController {
             $board[$to] = [$tile];
             $this->setBoard($board);
 
-            $this->database->movePiece($from, $to, $this->getGameId(), $this->getLastMove());
+            $this->database->movePiece($from, $to);
 
             $this->playerController->switchPlayer();
 
-            $this->setLastMove($this->database->getInsertID());
+            $this->database->setLastMove($this->database->getInsertID());
+
         }
     }
 
     public function isValidPlay($piece, $to): bool {
 
         $player = $this->playerController->getPlayer();
-        $deck = $this->playerController->getDeck();
+        $deck = $this->playerController->getDeck()[$player];
         $board = $this->getBoard();
-
         if (!$deck[$piece])
             $_SESSION['error'] = "Player does not have tile";
         elseif (isset($board[$to]))
@@ -105,7 +112,7 @@ class GameController {
 
     public function isMoveValid($from, $to): bool {
         $player = $this->playerController->getPlayer();
-        $deck = $this->playerController->getDeck();
+        $deck = $this->playerController->getDeck()[$player];
         $board = $this->getBoard();
 
         if (!isset($board[$from])) {
@@ -124,6 +131,7 @@ class GameController {
             }
             else {
                 $all = array_keys($board);
+                unset($board[$from]);
                 $queue = [array_shift($all)];
                 while ($queue) {
                     $next = explode(',', array_shift($queue));
