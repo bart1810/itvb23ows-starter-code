@@ -44,6 +44,7 @@ services:
           - jenkins
   sonarqube:
     container_name: sonarqube_container
+    restart: on-failure
     build: ./sonarqube/
     image: sonarqube
     ports:

@@ -1,77 +1,72 @@
 <?php
 session_start();
 
-include_once 'util.php';
+use Controllers\GameController as GameController;
+use Controllers\ErrorController as ErrorController;
+use Controllers\PlayerController as PlayerController;
+use Database\Database as Database;
 
-if (!isset($_SESSION['board'])) {
-    header('Location: restart.php');
-    exit(0);
-}
-$board = $_SESSION['board'];
-$player = $_SESSION['player'];
-$hand = $_SESSION['hand'];
+require_once './vendor/autoload.php';
 
-$to = [];
-foreach ($GLOBALS['OFFSETS'] as $pq) {
-    foreach (array_keys($board) as $pos) {
-        $pq2 = explode(',', $pos);
-        $to[] = ($pq[0] + $pq2[0]).','.($pq[1] + $pq2[1]);
-    }
+$database = new Database();
+$errorController = new ErrorController();
+$playerController = new PlayerController();
+$gameController = new GameController($database, $playerController);
+
+if (array_key_exists('restart', $_POST) || $gameController->getBoard() == null) {
+    $database->restartGame();
 }
-$to = array_unique($to);
-if (!count($to)) $to[] = '0,0';
+
+$board = $gameController->getBoard();
+$player = $playerController->getPlayer();
+
+// Handle 'Pass' button press
+if(array_key_exists('pass', $_POST)) {
+    $gameController->pass();
+    header("Location: ./index.php");
+
+}
+
+// Handle 'Restart' button press
+if(array_key_exists('restart', $_POST)) {
+    $database->restartGame();
+    header("Location: ./index.php");
+}
+
+// Handle 'Undo' button press
+if(array_key_exists('undo', $_POST)) {
+    $database->undo();
+    header("Location: ./index.php");
+}
+
+// Handle 'Play' button press
+if(array_key_exists('play', $_POST)) {
+    $piece = $_POST['piece'];
+    $to = $_POST['to'];
+
+    $gameController->playPiece($piece, $to);
+    header("Location: ./index.php");
+}
+
+if(array_key_exists('move', $_POST) && isset($_POST['from'])) {
+    $from = $_POST['from'];
+    $to = $_POST['to'];
+
+    $gameController->movePiece($from, $to);
+    header("Location: ./index.php");
+}
+
+$hand = $playerController->getDeck();
+$to = $gameController->getToPositions();
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <title>Hive</title>
-    <style>
-        div.board {
-            width: 60%;
-            height: 100%;
-            min-height: 500px;
-            float: left;
-            overflow: scroll;
-            position: relative;
-        }
-
-        div.board div.tile {
-            position: absolute;
-        }
-
-        div.tile {
-            display: inline-block;
-            width: 4em;
-            height: 4em;
-            border: 1px solid black;
-            box-sizing: border-box;
-            font-size: 50%;
-            padding: 2px;
-        }
-
-        div.tile span {
-            display: block;
-            width: 100%;
-            text-align: center;
-            font-size: 200%;
-        }
-
-        div.player0 {
-            color: black;
-            background: white;
-        }
-
-        div.player1 {
-            color: white;
-            background: black
-        }
-
-        div.stacked {
-            border-width: 3px;
-            border-color: red;
-            padding: 0;
-        }
-    </style>
+    <link rel="stylesheet" href="./css/board.css">
+    <link rel="stylesheet" href="./css/tile.css">
+    <link rel="stylesheet" href="./css/player.css">
+    <link rel="stylesheet" href="./css/util.css">
 </head>
 <body>
 <div class="board">
@@ -88,7 +83,9 @@ if (!count($to)) $to[] = '0,0';
         $h = count($tile);
         echo '<div class="tile player';
         echo $tile[$h-1][0];
-        if ($h > 1) echo ' stacked';
+        if ($h > 1) {
+            echo ' stacked';
+        }
         echo '" style="left: ';
         echo ($pq[0] - $min_p) * 4 + ($pq[1] - $min_q) * 2;
         echo 'em; top: ';
@@ -122,7 +119,7 @@ if (!count($to)) $to[] = '0,0';
 <div class="turn">
     Turn: <?php if ($player == 0) echo "White"; else echo "Black"; ?>
 </div>
-<form method="post" action="play.php">
+<form method="post">
     <label>
         <select name="piece">
             <?php
@@ -138,21 +135,21 @@ if (!count($to)) $to[] = '0,0';
         <select name="to">
             <?php
             foreach ($to as $pos) {
-                if (!isset($board[$pos]) && isLegalPosition($player, $pos, $board)) {
+                if (!isset($board[$pos]) && $gameController->isLegalPosition($player, $pos, $board)) {
                     echo "<option value=\"$pos\">$pos</option>";
                 }
             }
             ?>
         </select>
     </label>
-    <input type="submit" value="Play">
+    <input type="submit" name="play" value="Play">
 </form>
-<form method="post" action="move.php">
+<form method="post">
     <label>
         <select name="from">
             <?php
             foreach (array_keys($board) as $pos) {
-                if (playerOwnsTile($board, $player, $pos))
+                if ($gameController->playerOwnsTile($board, $player, $pos))
                 echo "<option value=\"$pos\">$pos</option>";
             }
             ?>
@@ -167,28 +164,31 @@ if (!count($to)) $to[] = '0,0';
             ?>
         </select>
     </label>
-    <input type="submit" value="Move">
+    <input type="submit" name="move" value="Move">
 </form>
-<form method="post" action="pass.php">
-    <input type="submit" value="Pass">
+<form method="post">
+    <input type="submit" name="pass" value="Pass">
 </form>
-<form method="post" action="restart.php">
-    <input type="submit" value="Restart">
+<form method="post">
+    <input type="submit" name="restart" value="Restart">
 </form>
-<strong><?php if (isset($_SESSION['error'])) echo($_SESSION['error']); unset($_SESSION['error']); ?></strong>
+<strong>
+    <?php $errorController->printError(); ?>
+</strong>
 <ol>
     <?php
-    $db = include 'database.php';
-    $stmt = $db->prepare('SELECT * FROM moves WHERE game_id = '.$_SESSION['game_id']);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    while ($row = $result->fetch_array()) {
-        echo '<li>'.$row[2].' '.$row[3].' '.$row[4].'</li>';
-    }
+    $database->printMoves();
+//    $db = include 'Database.php';
+//    $stmt = $db->prepare('SELECT * FROM moves WHERE game_id = '.$_SESSION['game_id']);
+//    $stmt->execute();
+//    $result = $stmt->get_result();
+//    while ($row = $result->fetch_array()) {
+//        echo '<li>'.$row[2].' '.$row[3].' '.$row[4].'</li>';
+//    }
     ?>
 </ol>
-<form method="post" action="undo.php">
-    <input type="submit" value="Undo">
+<form method="post">
+    <input type="submit" name="undo" value="Undo">
 </form>
 </body>
 </html>
