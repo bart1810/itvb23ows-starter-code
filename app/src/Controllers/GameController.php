@@ -112,81 +112,87 @@ class GameController {
 
     public function isMoveValid($from, $to): bool {
         $player = $this->playerController->getPlayer();
-        $deck = $this->playerController->getDeck()[$player];
+        $hand = $this->playerController->getDeck()[$player];
         $board = $this->getBoard();
+
+        $this->errorController->setError(null);
 
         if (!isset($board[$from])) {
             $this->errorController->setError("Board position is empty");
-        }
-        elseif (!$this->playerOwnsTile($board, $player, $from)) {
+        } elseif ($from == $to) {
+            $this->errorController->setError("Tile must move");
+        } elseif (!$this->playerOwnsTile($board, $player, $from)) {
             $this->errorController->setError("Tile is not owned by player");
-        }
-        elseif ($deck['Q']) {
+        } elseif ($hand['Q']) {
             $this->errorController->setError("Queen bee is not played");
-        }
-        else {
+        } else {
             $tile = array_pop($board[$from]);
-            if (!$this->hasNeighbour($to, $board)) {
+            unset($board[$from]);
+
+            if (!$this->hasNeighbour($to, $board) || $this->isNotAttached($board)) {
                 $this->errorController->setError("Move would split hive");
-            }
-            else {
-                $all = array_keys($board);
-                unset($board[$from]);
-                $queue = [array_shift($all)];
-                while ($queue) {
-                    $next = explode(',', array_shift($queue));
-                    foreach ($this->offsets as $pq) {
-                        list($p, $q) = $pq;
-                        $p .= $next[0];
-                        $q .= $next[1];
-                        if (in_array("$p,$q", $all)) {
-                            $queue[] = "$p,$q";
-                            $all = array_diff($all, ["$p,$q"]);
-                        }
-                    }
-                }
-                if ($all) {
-                    $this->errorController->setError("Move would split hive");
-                }
-                else {
-                    if ($from == $to) {
-                        $this->errorController->setError("Tile must move");
-                    }
-                    elseif (isset($board[$to]) && $tile[1] != "B") {
-                        $this->errorController->setError("Tile not empty");
-                    }
-                    elseif ($tile[1] == "Q" || $tile[1] == "B") {
-                        if (!$this->slide($board, $from, $to)) {
-                            $this->errorController->setError("Tile must slide");
-                        }
-                    } else {
-                        return true;
-                    }
-                }
+            } elseif (isset($board[$to]) && $tile[1] != "B") {
+                $this->errorController->setError("Tile not empty");
+            } elseif ((($tile[1] == "Q" || $tile[1] == "B") && !$this->slide($board, $from, $to))) {
+                $this->errorController->setError("Tile must slide");
+            } else {
+                return true;
             }
         }
         return false;
+    }
+
+    private function isNotAttached($board): array {
+        $all = array_keys($board);
+        $queue = [array_shift($all)];
+
+        while ($queue) {
+            $next = explode(',', array_shift($queue));
+            foreach ($this->offsets as $pq) {
+                list($p, $q) = $pq;
+                $p += $next[0];
+                $q += $next[1];
+
+                if (in_array("$p,$q", $all)) {
+                    $queue[] = "$p,$q";
+                    $all = array_diff($all, ["$p,$q"]);
+                }
+            }
+        }
+
+        return $all;
     }
 
     public function isNeighbour($a, $b): bool {
         $a = explode(',', $a);
         $b = explode(',', $b);
-        if ($a[0] == $b[0] && abs($a[1] - $b[1]) == 1) {
+
+        if (
+            $a[0] == $b[0] && abs($a[1] - $b[1]) == 1 ||
+            $a[1] == $b[1] && abs($a[0] - $b[0]) == 1 ||
+            $a[0] + $a[1] == $b[0] + $b[1]
+        ) {
             return true;
         }
-        if ($a[1] == $b[1] && abs($a[0] - $b[0]) == 1) {
-            return true;
-        }
-        if ($a[0] . $a[1] == $b[0] . $b[1]) {
-            return true;
-        }
+
         return false;
     }
 
-    public function hasNeighbour($a, $board): bool
+    private function hasNeighbour($a, $board): bool
     {
-        foreach (array_keys($board) as $b) {
-            if ($this->isNeighbour($a, $b)) return true;
+        $b = explode(',', $a);
+
+        foreach ($this->offsets as $pq) {
+            $p = $b[0] + $pq[0];
+            $q = $b[1] + $pq[1];
+
+            $position = $p . "," . $q;
+
+            if (isset($board[$position]) &&
+                $this->isNeighbour($a, $position)
+            ) {
+                return true;
+            }
         }
         return false;
     }
@@ -229,11 +235,12 @@ class GameController {
 
         $common = [];
         foreach ($this->offsets as $pq) {
-            $p = $b[0] . $pq[0];
-            $q = $b[1] . $pq[1];
+            $p = $b[0] + $pq[0];
+            $q = $b[1] + $pq[1];
             if ($this->isNeighbour($from, $p.",".$q)) $common[] = $p.",".$q;
         }
-        if (!isset($board[$common[0]]) && !isset($board[$common[1]]) && !isset($board[$from]) && !isset($board[$to])) {
+        if ((!isset($board[$common[0]]) || !$board[$common[0]]) && (!isset($board[$common[1]]) || !$board[$common[1]]) &&
+            (!isset($board[$from]) || !$board[$from]) && (!isset($board[$to]) || !$board[$to])) {
             return false;
         }
         return min($this->len($board[$common[0]]), $this->len($board[$common[1]])) <= max($this->len($board[$from]), $this->len($board[$to]));
