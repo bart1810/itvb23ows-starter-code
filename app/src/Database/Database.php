@@ -92,9 +92,13 @@ class Database {
         $_SESSION['game_id'] = $gameId;
     }
 
+    public function setDefaultDeck(): void {
+        $_SESSION['hand'] = [0 => ["Q" => 1, "B" => 2, "S" => 2, "A" => 3, "G" => 3], 1 => ["Q" => 1, "B" => 2, "S" => 2, "A" => 3, "G" => 3]];
+    }
+
     public function restartGame(): void {
         $_SESSION['board'] = [];
-        $_SESSION['hand'] = [0 => ["Q" => 1, "B" => 2, "S" => 2, "A" => 3, "G" => 3], 1 => ["Q" => 1, "B" => 2, "S" => 2, "A" => 3, "G" => 3]];
+        $this->setDefaultDeck();
         $_SESSION['player'] = 0;
 
         unset($_SESSION['error']);
@@ -103,6 +107,5 @@ class Database {
         $this->database->prepare('INSERT INTO games VALUES ()')->execute();
 
         $this->setGameId($this->getInsertID());
-
     }
 }
