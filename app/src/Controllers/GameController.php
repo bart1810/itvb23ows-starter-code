@@ -44,8 +44,28 @@ class GameController {
         return $to;
     }
 
+//  Helper function for tests
+    public function currentPlayerPlayerPositions(): array {
+        $player = $this->playerController->getPlayer();
+        $board = $this->getBoard();
+
+        $positions = [];
+
+        foreach ($board as $pos => $tiles) {
+            if (end($tiles)[0] == $player) {
+                $positions[] = $pos;
+            }
+        }
+        return $positions;
+    }
+
+    public function getBoard() {
+        return $_SESSION['board'] ?? null;
+    }
+  
     public function playerOwnsTile($board, $player, $from): bool {
         return $board[$from][count($board[$from])-1][0] == $player;
+
     }
 
     public function pass(): void {

@@ -57,7 +57,7 @@ if(array_key_exists('move', $_POST) && isset($_POST['from'])) {
     header("Location: ./index.php");
 }
 
-$hand = $playerController->getDeck();
+$deck = $playerController->getDeck();
 $to = $gameController->getToPositions();
 ?>
 <!DOCTYPE html>
@@ -100,7 +100,7 @@ $to = $gameController->getToPositions();
 <div class="hand">
     White:
     <?php
-    foreach ($hand[0] as $tile => $ct) {
+    foreach ($deck[0] as $tile => $ct) {
         for ($i = 0; $i < $ct; $i++) {
             echo '<div class="tile player0"><span>'.$tile."</span></div> ";
         }
@@ -110,7 +110,7 @@ $to = $gameController->getToPositions();
 <div class="hand">
     Black:
     <?php
-    foreach ($hand[1] as $tile => $ct) {
+    foreach ($deck[1] as $tile => $ct) {
         for ($i = 0; $i < $ct; $i++) {
             echo '<div class="tile player1"><span>'.$tile."</span></div> ";
         }
@@ -124,7 +124,7 @@ $to = $gameController->getToPositions();
     <label>
         <select name="piece">
             <?php
-            foreach ($hand[$player] as $tile => $ct) {
+            foreach ($deck[$player] as $tile => $ct) {
                 if ($ct !== 0) {
                     echo "<option value=\"$tile\">$tile</option>";
                 }
@@ -150,8 +150,9 @@ $to = $gameController->getToPositions();
         <select name="from">
             <?php
             foreach (array_keys($board) as $pos) {
-                if ($gameController->playerOwnsTile($board, $player, $pos))
-                echo "<option value=\"$pos\">$pos</option>";
+                if ($gameController->playerOwnsTile($board, $player, $pos)) {
+                    echo "<option value=\"$pos\">$pos</option>";
+                }
             }
             ?>
         </select>
