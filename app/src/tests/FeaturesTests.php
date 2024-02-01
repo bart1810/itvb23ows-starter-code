@@ -60,4 +60,36 @@ class FeaturesTests extends TestCase {
 
         $this->assertArrayNotHasKey("1,-1", $this->gameController->getBoard());
     }
+
+    public function test_MoveAnt_OneTile() {
+        $this->gameController->playPiece('Q', '0,0');
+        $this->gameController->playPiece('Q', '1,0');
+        $this->gameController->playPiece('A', '-1,0');
+        $this->gameController->playPiece('B', '2,0');
+        $this->gameController->movePiece('-1,0', '0,-1');
+
+        $this->assertArrayHasKey('0,-1', $this->gameController->getBoard());
+    }
+
+    public function test_MoveAnt_MultipleTiles() {
+        $this->gameController->playPiece('Q', '0,0');
+        $this->gameController->playPiece('Q', '1,0');
+        $this->gameController->playPiece('A', '-1,0');
+        $this->gameController->playPiece('B', '2,0');
+        $this->gameController->movePiece('-1,0', '2,-1');
+
+        $this->assertArrayHasKey('2,-1', $this->gameController->getBoard());
+    }
+
+    public function test_MoveAnt_AntDoesNotSlide() {
+        $this->gameController->playPiece('Q', '0,0');
+        $this->gameController->playPiece('Q', '1,0');
+        $this->gameController->playPiece('B', '-1,1');
+        $this->gameController->playPiece('B', '1,1');
+        $this->gameController->playPiece('A', '-2,1');
+        $this->gameController->playPiece('B', '0,2');
+        $this->gameController->movePiece('-2,1', '0,1');
+
+        $this->assertArrayNotHasKey("0,1", $this->gameController->getBoard());
+    }
 }

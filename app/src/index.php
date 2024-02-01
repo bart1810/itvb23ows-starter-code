@@ -15,6 +15,7 @@ $playerController = new PlayerController();
 $gameController = new GameController($database, $playerController);
 
 if (array_key_exists('restart', $_POST) || $gameController->getBoard() == null) {
+    unset($_SESSION['error']);
     $database->restartGame();
 }
 
@@ -23,6 +24,7 @@ $player = $playerController->getPlayer();
 
 // Handle 'Pass' button press
 if(array_key_exists('pass', $_POST)) {
+    unset($_SESSION['error']);
     $gameController->pass();
     header("Location: ./index.php");
 
@@ -30,12 +32,14 @@ if(array_key_exists('pass', $_POST)) {
 
 // Handle 'Restart' button press
 if(array_key_exists('restart', $_POST)) {
+    unset($_SESSION['error']);
     $database->restartGame();
     header("Location: ./index.php");
 }
 
 // Handle 'Undo' button press
 if(array_key_exists('undo', $_POST)) {
+    unset($_SESSION['error']);
     $database->undo();
     header("Location: ./index.php");
 }
@@ -45,6 +49,7 @@ if(array_key_exists('play', $_POST)) {
     $piece = $_POST['piece'];
     $to = $_POST['to'];
 
+    unset($_SESSION['error']);
     $gameController->playPiece($piece, $to);
     header("Location: ./index.php");
 }
@@ -53,6 +58,7 @@ if(array_key_exists('move', $_POST) && isset($_POST['from'])) {
     $from = $_POST['from'];
     $to = $_POST['to'];
 
+    unset($_SESSION['error']);
     $gameController->movePiece($from, $to);
     header("Location: ./index.php");
 }
@@ -136,9 +142,7 @@ $to = $gameController->getToPositions();
         <select name="to">
             <?php
             foreach ($to as $pos) {
-//                if (!isset($board[$pos]) && $gameController->isLegalPosition($player, $pos, $board)) {
-                    echo "<option value=\"$pos\">$pos</option>";
-//                }
+                echo "<option value=\"$pos\">$pos</option>";
             }
             ?>
         </select>
@@ -180,13 +184,6 @@ $to = $gameController->getToPositions();
 <ol>
     <?php
     $database->printMoves();
-//    $db = include 'Database.php';
-//    $stmt = $db->prepare('SELECT * FROM moves WHERE game_id = '.$_SESSION['game_id']);
-//    $stmt->execute();
-//    $result = $stmt->get_result();
-//    while ($row = $result->fetch_array()) {
-//        echo '<li>'.$row[2].' '.$row[3].' '.$row[4].'</li>';
-//    }
     ?>
 </ol>
 <form method="post">
