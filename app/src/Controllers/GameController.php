@@ -163,7 +163,8 @@ class GameController {
             elseif (isset($board[$to]) && $tile[1] != "B") {
                 $this->errorController->setError("Tile not empty");
             }
-            elseif ((($tile[1] == "Q" || $tile[1] == "B") && !$this->slide($from, $to)) || ($tile[1] == "G" && !$this->slideForGrasshopper($from, $to))) {
+            elseif ((($tile[1] == "Q" || $tile[1] == "B") && !$this->slide($from, $to)) || ($tile[1] == "G" && !$this->slideForGrasshopper($from, $to))
+            || ($tile[1] == "A" && !$this->slideForAntSoldier($from, $to))) {
                 $this->errorController->setError("Tile must slide");
             } else {
                 return true;
@@ -292,7 +293,6 @@ class GameController {
         $q = $a[1] + $jumpDirection[1];
 
         $pos = $p.",".$q;
-        $positionExploded = [$p, $q];
 
         if (!isset($board[$pos])) {
             return false;
@@ -309,6 +309,52 @@ class GameController {
             return true;
         }
 
+        return false;
+    }
+
+    public function slideForAntSoldier($from, $to): bool {
+        $board = $this->getBoard();
+
+        if ($from == $to) {
+            $this->errorController->setError("Soldier ant can't slide on the same place");
+            return false;
+        }
+
+        foreach(array_keys($board) as $b) {
+            if ($this->hasNeighbour($to, $b)) {
+                continue;
+            } else {
+                return false;
+            }
+        }
+        unset($board[$from]);
+
+        $visited = [];
+        $tiles = array($from);
+
+        while (!empty($tiles)) {
+            $currentTile = array_shift($tiles);
+
+            if (!in_array($currentTile, $visited)) {
+                $visited[] = $currentTile;
+            }
+
+            $b = explode(',', $currentTile);
+
+            foreach ($this->offsets as $pq) {
+                $p = $b[0] + $pq[0];
+                $q = $b[1] + $pq[1];
+
+                $pos = $p.",".$q;
+
+                if (!in_array($pos, $visited) && !isset($board[$pos]) && $this->hasNeighbour($board, $pos)) {
+                    if ($pos == $to) {
+                        return true;
+                    }
+                    $tiles[] = $pos;
+                }
+            }
+        }
         return false;
     }
 
