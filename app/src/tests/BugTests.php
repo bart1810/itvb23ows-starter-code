@@ -33,6 +33,7 @@ class BugTests extends TestCase {
         $this->assertNotContains("Q", $deck);
     }
 
+//    Check if the move from list does not contain positions from the opponent
     public function test_MoveFromPosition_DoesNotContainOpponentPositions_BugOne() {
         $this->gameController->playPiece("Q", "0,0");
         $this->gameController->playPiece("Q", "1,0");
@@ -41,6 +42,7 @@ class BugTests extends TestCase {
         $this->assertNotContains("0,-1", $this->gameController->currentPlayerPlayerPositions());
     }
 
+//    Check if the move from list contains the position of white
     public function test_MoveFrom_ContainsWhiteFirstPosition() {
         $this->gameController->playPiece("Q", "0,0");
         $this->gameController->playPiece("Q", "1,0");
@@ -48,6 +50,7 @@ class BugTests extends TestCase {
         $this->assertContains("0,0", $this->gameController->currentPlayerPlayerPositions());
     }
 
+//    Check if bug 2 is solved
     public function test_WhiteQueen_CanMoveToPosition_BugTwo() {
         $this->gameController->playPiece("Q", "0,0");
         $this->gameController->playPiece("Q", "1,0");
@@ -56,6 +59,7 @@ class BugTests extends TestCase {
         $this->assertArrayHasKey("0,1", $this->gameController->getBoard());
     }
 
+//    Check if white queen bee needs to be placed after 3 insects that are not the queen
     public function test_WhiteQueen_IsNotPlacedWithinFourMoves() {
         $this->gameController->playPiece("B", "0,0");
         $this->gameController->playPiece("B", "0,1");
@@ -70,6 +74,7 @@ class BugTests extends TestCase {
         $this->assertEquals("Must play queen bee", $this->errorController->getError());
     }
 
+//    Check if black queen bee needs to be placed after 3 insects that are not the queen
     public function test_BlackQueen_IsNotPlacedWithinFourMoves() {
         $this->gameController->playPiece("Q", "0,0");
         $this->gameController->playPiece("B", "0,1");
@@ -85,6 +90,7 @@ class BugTests extends TestCase {
         $this->assertEquals("Must play queen bee", $this->errorController->getError());
     }
 
+//    Check if you can play an insect on a position that is released from a moved insect
     public function test_PlayPiece_OnPosPreviouslyMovedPiece() {
         $this->gameController->playPiece("Q", "0,0");
         $this->gameController->playPiece("B", "0,1");
