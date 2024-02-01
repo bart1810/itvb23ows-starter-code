@@ -2,22 +2,17 @@
 
 use PHPUnit\Framework\TestCase;
 use Controllers\GameController as GameController;
-use Controllers\ErrorController as ErrorController;
 use Database\Database as Database;
 use Controllers\PlayerController as PlayerController;
 class FeaturesTests extends TestCase {
     private GameController $gameController;
-    private playerController $playerController;
-    private ErrorController $errorController;
-    private Database $database;
 
     protected function setUp(): void {
-        $this->database = new Database();
-        $this->playerController = new PlayerController();
-        $this->gameController = new GameController($this->database, $this->playerController);
-        $this->errorController = new ErrorController();
+        $database = new Database();
+        $playerController = new PlayerController();
+        $this->gameController = new GameController($database, $playerController);
 
-        $this->database->restartGame();
+        $database->restartGame();
     }
 
     public function test_ReturnFalse_WhenGrasshopperJumpsToSamePosition() {
@@ -58,6 +53,11 @@ class FeaturesTests extends TestCase {
 
     public function test_MoveGrasshopper_CanNotJumpOverEmptyTile() {
         $this->gameController->playPiece("Q", "0,0");
+        $this->gameController->playPiece("Q", "-1,0");
+        $this->gameController->playPiece("G", "0,1");
+        $this->gameController->playPiece("B", "-2,0");
+        $this->gameController->movePiece("0,1", "1,-1");
 
+        $this->assertArrayNotHasKey("1,-1", $this->gameController->getBoard());
     }
 }
