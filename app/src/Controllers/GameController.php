@@ -59,10 +59,6 @@ class GameController {
         return $positions;
     }
 
-    public function getBoard() {
-        return $_SESSION['board'] ?? null;
-    }
-  
     public function playerOwnsTile($board, $player, $from): bool {
         return $board[$from][count($board[$from])-1][0] == $player;
 
@@ -147,22 +143,27 @@ class GameController {
 
         if (!isset($board[$from])) {
             $this->errorController->setError("Board position is empty");
-        } elseif ($from == $to) {
+        }
+        elseif ($from == $to) {
             $this->errorController->setError("Tile must move");
-        } elseif (!$this->playerOwnsTile($board, $player, $from)) {
+        }
+        elseif (!$this->playerOwnsTile($board, $player, $from)) {
             $this->errorController->setError("Tile is not owned by player");
-        } elseif ($deck['Q']) {
+        }
+        elseif ($deck['Q']) {
             $this->errorController->setError("Queen bee is not played");
-        } else {
+        }
+        else {
             $tile = array_pop($board[$from]);
             unset($board[$from]);
 
-            if (!$this->hasNeighbour($to, $board) || $this->isNotAttachedTo()) {
+            if (!$this->hasNeighbour($to, $board) || $this->isNotAttachedToHive()) {
                 $this->errorController->setError("Move would split hive");
-            } elseif (isset($board[$to]) && $tile[1] != "B") {
+            }
+            elseif (isset($board[$to]) && $tile[1] != "B") {
                 $this->errorController->setError("Tile not empty");
-            } elseif ((($tile[1] == "Q" || $tile[1] == "B") && !$this->slide($from, $to))
-            ) {
+            }
+            elseif ((($tile[1] == "Q" || $tile[1] == "B") && !$this->slide($from, $to)) || ($tile[1] == "G" && !$this->slideForGrasshopper($from, $to))) {
                 $this->errorController->setError("Tile must slide");
             } else {
                 return true;
@@ -171,7 +172,7 @@ class GameController {
         return false;
     }
 
-    private function isNotAttachedTo(): array {
+    private function isNotAttachedToHive(): array {
         $board = $this->getBoard();
 
         $all = array_keys($board);
@@ -197,11 +198,8 @@ class GameController {
         $a = explode(',', $a);
         $b = explode(',', $b);
 
-        if (
-            $a[0] == $b[0] && abs($a[1] - $b[1]) == 1 ||
-            $a[1] == $b[1] && abs($a[0] - $b[0]) == 1 ||
-            $a[0] + $a[1] == $b[0] + $b[1]
-        ) {
+        if ($a[0] == $b[0] && abs($a[1] - $b[1]) == 1 || $a[1] == $b[1] &&
+            abs($a[0] - $b[0]) == 1 || $a[0] + $a[1] == $b[0] + $b[1]) {
             return true;
         }
 
@@ -246,7 +244,6 @@ class GameController {
         return $tile ? count($tile) : 0;
     }
 
-    // Give from and to, and return if move of one position is allowed
     private function slide($from, $to): bool {
         $board = $this->getBoard();
 
@@ -272,5 +269,62 @@ class GameController {
 
         return min($this->len($board[$common[0]] ?? 0), $this->len($board[$common[1]] ?? 0))
             <= max($this->len($board[$from] ?? 0), $this->len($board[$to] ?? 0));
+    }
+
+    public function slideForGrasshopper($from, $to): bool {
+        $board = $this->getBoard();
+
+        if ($from == $to) {
+            $this->errorController->setError("Grasshopper can't jump to the same place as he is standing on");
+            return false;
+        }
+
+        $a = explode(',', $from);
+        $b = explode(',', $to);
+
+        $jumpDirection = $this->getJumpDirection($a, $b);
+
+        if ($jumpDirection == null) {
+            return false;
+        }
+
+        $p = $a[0] + $jumpDirection[0];
+        $q = $a[1] + $jumpDirection[1];
+
+        $pos = $p.",".$q;
+        $positionExploded = [$p, $q];
+
+        if (!isset($board[$pos])) {
+            return false;
+        }
+
+        while (isset($board[$pos])) {
+            $p += $jumpDirection[0];
+            $q += $jumpDirection[1];
+
+            $pos = $p . "," . $q;
+        }
+
+        if ($pos == $to) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function getJumpDirection($a, $b): array | null {
+
+        if ($a[0] == $b[0]) {
+            return $b[1] > $a[1] ? [0, 1] : [0, -1];
+        }
+        elseif ($a[1] == $b[1]) {
+            return $b[0] > $a[0] ? [1, 0] : [-1, 0];
+        }
+        elseif (abs($a[0] - $a[1]) == abs($b[0] - $b[1])) {
+            return $b[1] > $a[1] ? [-1, 1] : [1, -1];
+        }
+        else {
+            return null;
+        }
     }
 }
