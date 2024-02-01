@@ -3,6 +3,7 @@
 namespace Controllers;
 
 use Database\Database;
+
 class GameController {
     private array $offsets = [[0, 1], [0, -1], [1, 0], [-1, 0], [-1, 1], [1, -1]];
 
@@ -19,6 +20,14 @@ class GameController {
         return $this->offsets;
     }
 
+    public function getBoard() {
+        return $_SESSION['board'] ?? null;
+    }
+
+    public function setBoard($board): void {
+        $_SESSION['board'] = $board;
+    }
+
     public function getToPositions(): array {
         $to = [];
         foreach ($this->getOffsets() as $pq) {
@@ -31,6 +40,7 @@ class GameController {
         if (!count($to)) {
             $to[] = '0,0';
         }
+
         return $to;
     }
 
@@ -52,27 +62,10 @@ class GameController {
     public function getBoard() {
         return $_SESSION['board'] ?? null;
     }
+  
+    public function playerOwnsTile($board, $player, $from): bool {
+        return $board[$from][count($board[$from])-1][0] == $player;
 
-    public function setBoard($board): void {
-        $_SESSION['board'] = $board;
-    }
-
-    public function playPiece($piece, $to): void {
-        if ($this->isValidPlay($piece, $to)) {
-
-            $this->errorController->unsetError();
-            $player = $this->playerController->getPlayer();
-
-            $_SESSION['board'][$to] = [[$_SESSION['player'], $piece]];
-            $_SESSION['hand'][$player][$piece]--;
-
-            $this->database->playPiece($to, $piece);
-
-            $this->playerController->switchPlayer();
-
-            $this->database->setLastMove($this->database->getInsertID());
-
-        }
     }
 
     public function pass(): void {
@@ -84,11 +77,31 @@ class GameController {
 
     }
 
-    public function movePiece($from, $to): void {
-        if ($this->isMoveValid($from, $to)) {
+    public function playPiece($piece, $to): void {
+        if ($this->isValidPlay($piece, $to)) {
 
-            $this->errorController->unsetError();
+            $player = $this->playerController->getPlayer();
+
+            unset($_SESSION['ERROR']);
+
+            $_SESSION['board'][$to] = [[$_SESSION['player'], $piece]];
+            $_SESSION['hand'][$player][$piece]--;
+
+            $this->database->playPiece($to, $piece);
+
+            $this->playerController->switchPlayer();
+
+            $this->database->setLastMove($this->database->getInsertID());
+        }
+    }
+
+    public function movePiece($from, $to): void {
+        if ($this->isValidMove($from, $to)) {
+
             $board = $this->getBoard();
+
+            unset($_SESSION['ERROR']);
+
             $tile = array_pop($board[$from]);
 
             unset($board[$from]);
@@ -100,37 +113,37 @@ class GameController {
             $this->playerController->switchPlayer();
 
             $this->database->setLastMove($this->database->getInsertID());
-
         }
     }
 
-    public function isValidPlay($piece, $to): bool {
-
+    private function isValidPlay($piece, $to): bool {
         $player = $this->playerController->getPlayer();
         $deck = $this->playerController->getDeck()[$player];
         $board = $this->getBoard();
-        if (!$deck[$piece])
-            $_SESSION['error'] = "Player does not have tile";
-        elseif (isset($board[$to]))
-            $_SESSION['error'] = 'Board position is not empty';
-        elseif (count($board) && !$this->hasNeighbour($to, $board))
-            $_SESSION['error'] = "board position has no neighbour";
-        elseif (array_sum($deck) < 11 && !$this->neighboursAreSameColor($player, $to, $board))
-            $_SESSION['error'] = "Board position has opposing neighbour";
-        elseif (array_sum($deck) <= 8 && $piece !== 'Q' && $deck['Q'] !== 0) {
-            $_SESSION['error'] = 'Must play queen bee';
+
+        if (!$deck[$piece]) {
+            $this->errorController->setError("Player does not have tile");
+        } elseif (isset($board[$to])) {
+            $this->errorController->setError('Board position is not empty');
+        } elseif (count($board) && !$this->hasNeighbour($to, $board)) {
+            $this->errorController->setError("Board position has no neighbour");
+        } elseif (array_sum($deck) < 11 && !$this->neighboursAreSameColor($to)) {
+            $this->errorController->setError("Board position has opposing neighbour");
+        } elseif ($piece != 'Q' && array_sum($deck) <= 8 && $deck['Q']) {
+            $this->errorController->setError('Must play queen bee');
         } else {
             return true;
         }
         return false;
     }
 
-    public function isMoveValid($from, $to): bool {
+    private function isValidMove($from, $to): bool
+    {
         $player = $this->playerController->getPlayer();
-        $hand = $this->playerController->getDeck()[$player];
+        $deck = $this->playerController->getDeck()[$player];
         $board = $this->getBoard();
 
-        $this->errorController->setError(null);
+        unset($_SESSION['ERROR']);
 
         if (!isset($board[$from])) {
             $this->errorController->setError("Board position is empty");
@@ -138,17 +151,18 @@ class GameController {
             $this->errorController->setError("Tile must move");
         } elseif (!$this->playerOwnsTile($board, $player, $from)) {
             $this->errorController->setError("Tile is not owned by player");
-        } elseif ($hand['Q']) {
+        } elseif ($deck['Q']) {
             $this->errorController->setError("Queen bee is not played");
         } else {
             $tile = array_pop($board[$from]);
             unset($board[$from]);
 
-            if (!$this->hasNeighbour($to, $board) || $this->isNotAttached($board)) {
+            if (!$this->hasNeighbour($to, $board) || $this->isNotAttachedTo()) {
                 $this->errorController->setError("Move would split hive");
             } elseif (isset($board[$to]) && $tile[1] != "B") {
                 $this->errorController->setError("Tile not empty");
-            } elseif ((($tile[1] == "Q" || $tile[1] == "B") && !$this->slide($board, $from, $to))) {
+            } elseif ((($tile[1] == "Q" || $tile[1] == "B") && !$this->slide($from, $to))
+            ) {
                 $this->errorController->setError("Tile must slide");
             } else {
                 return true;
@@ -157,7 +171,9 @@ class GameController {
         return false;
     }
 
-    private function isNotAttached($board): array {
+    private function isNotAttachedTo(): array {
+        $board = $this->getBoard();
+
         $all = array_keys($board);
         $queue = [array_shift($all)];
 
@@ -174,11 +190,10 @@ class GameController {
                 }
             }
         }
-
         return $all;
     }
 
-    public function isNeighbour($a, $b): bool {
+    private function isNeighbour($a, $b): bool {
         $a = explode(',', $a);
         $b = explode(',', $b);
 
@@ -193,8 +208,7 @@ class GameController {
         return false;
     }
 
-    private function hasNeighbour($a, $board): bool
-    {
+    private function hasNeighbour($a, $board): bool {
         $b = explode(',', $a);
 
         foreach ($this->offsets as $pq) {
@@ -212,36 +226,30 @@ class GameController {
         return false;
     }
 
-    public function isLegalPosition($player, $pos, $board): bool {
-        if (count($board) == 1) {
-            return true;
-        } else {
-            return $this->neighboursAreSameColor($player, $pos, $board);
-        }
-    }
+    private function neighboursAreSameColor($a): bool {
+        $player = $this->playerController->getPlayer();
+        $board = $this->getBoard();
 
-    public function neighboursAreSameColor($player, $pos, $board): bool {
         foreach ($board as $b => $st) {
             if (!$st) {
                 continue;
             }
             $c = $st[count($st) - 1][0];
-            if ($c != $player && $this->isNeighbour($pos, $b)) {
+            if ($c != $player && $this->isNeighbour($a, $b)) {
                 return false;
             }
         }
         return true;
     }
 
-    public function playerOwnsTile($board, $player, $from): bool {
-        return $board[$from][count($board[$from])-1][0] == $player;
-    }
-
-    public function len($tile): int {
+    private function len($tile): int {
         return $tile ? count($tile) : 0;
     }
 
-    public function slide($board, $from, $to): bool {
+    // Give from and to, and return if move of one position is allowed
+    private function slide($from, $to): bool {
+        $board = $this->getBoard();
+
         if (!$this->hasNeighbour($to, $board) || !$this->isNeighbour($from, $to)) {
             return false;
         }
@@ -252,12 +260,17 @@ class GameController {
         foreach ($this->offsets as $pq) {
             $p = $b[0] + $pq[0];
             $q = $b[1] + $pq[1];
-            if ($this->isNeighbour($from, $p.",".$q)) $common[] = $p.",".$q;
+            if ($this->isNeighbour($from, $p.",".$q)) {
+                $common[] = $p.",".$q;
+            }
         }
+
         if ((!isset($board[$common[0]]) || !$board[$common[0]]) && (!isset($board[$common[1]]) || !$board[$common[1]]) &&
             (!isset($board[$from]) || !$board[$from]) && (!isset($board[$to]) || !$board[$to])) {
             return false;
         }
-        return min($this->len($board[$common[0]]), $this->len($board[$common[1]])) <= max($this->len($board[$from]), $this->len($board[$to]));
+
+        return min($this->len($board[$common[0]] ?? 0), $this->len($board[$common[1]] ?? 0))
+            <= max($this->len($board[$from] ?? 0), $this->len($board[$to] ?? 0));
     }
 }

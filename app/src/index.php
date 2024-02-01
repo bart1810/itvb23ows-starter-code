@@ -1,8 +1,9 @@
 <?php
+
 session_start();
 
-use Controllers\GameController as GameController;
 use Controllers\ErrorController as ErrorController;
+use Controllers\GameController as GameController;
 use Controllers\PlayerController as PlayerController;
 use Database\Database as Database;
 
@@ -135,9 +136,9 @@ $to = $gameController->getToPositions();
         <select name="to">
             <?php
             foreach ($to as $pos) {
-                if (!isset($board[$pos]) && $gameController->isLegalPosition($player, $pos, $board)) {
+//                if (!isset($board[$pos]) && $gameController->isLegalPosition($player, $pos, $board)) {
                     echo "<option value=\"$pos\">$pos</option>";
-                }
+//                }
             }
             ?>
         </select>
