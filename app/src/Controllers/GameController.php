@@ -163,8 +163,8 @@ class GameController {
             elseif (isset($board[$to]) && $tile[1] != "B") {
                 $this->errorController->setError("Tile not empty");
             }
-            elseif ((($tile[1] == "Q" || $tile[1] == "B") && !$this->slide($from, $to)) || ($tile[1] == "G" && !$this->slideForGrasshopper($from, $to))
-            || ($tile[1] == "A" && !$this->slideForAntSoldier($from, $to))) {
+            elseif ((($tile[1] == "Q" || $tile[1] == "B") && !$this->slide($from, $to)) || ($tile[1] == "G" && !$this->slideForGrasshopper($from, $to)) ||
+                ($tile[1] == "A" && !$this->slideForAntSoldier($from, $to)) || $tile[1] == 'S' && !$this->slideForSpider($from, $to)) {
                 $this->errorController->setError("Tile must slide");
             } else {
                 return true;
@@ -347,7 +347,7 @@ class GameController {
 
                 $pos = $p.",".$q;
 
-                if (!in_array($pos, $visited) && !isset($board[$pos]) && $this->hasNeighbour($board, $pos)) {
+                if (!in_array($pos, $visited) && !isset($board[$pos]) && $this->hasNeighbour($pos, $board)) {
                     if ($pos == $to) {
                         return true;
                     }
@@ -355,6 +355,60 @@ class GameController {
                 }
             }
         }
+        return false;
+    }
+
+    public function slideForSpider($from, $to): bool {
+        $board = $this->getBoard();
+        unset($board[$from]);
+        if ($from == $to) {
+            return false;
+        }
+
+        $visited = [];
+        $tiles = array($from);
+        $tiles[] = null;
+
+        $previousTile = null;
+        $takenSteps = 0;
+
+        while (!empty($tiles) && $takenSteps < 3) {
+            $currentTile = array_shift($tiles);
+
+            if ($currentTile == null) {
+                $takenSteps++;
+                $tiles[] = null;
+                if (reset($tiles) == null) {
+                    break;
+                } else {
+                    continue;
+                }
+            }
+
+            if (!in_array($currentTile, $visited)) {
+                $visited[] = $currentTile;
+            }
+
+            $b = explode(',', $currentTile);
+
+            foreach ($this->offsets as $pq) {
+                $p = $b[0] + $pq[0];
+                $q = $b[1] + $pq[1];
+
+                $pos = $p.",".$q;
+
+                if (!in_array($pos, $visited) && $pos != $previousTile && !isset($board[$pos]) && $this->hasNeighbour($pos, $board)) {
+//                  variable takenSteps is two because it starts at 0
+                    if ($pos == $to && $takenSteps == 2) {
+                        return true;
+                    }
+                    $tiles[] = $pos;
+                }
+            }
+
+            $previousTile = $currentTile;
+        }
+
         return false;
     }
 
