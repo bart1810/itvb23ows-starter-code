@@ -140,11 +140,14 @@ class FeaturesTests extends TestCase {
 
     //  Check if spider can slide 4 tiles, should not be possible
     public function test_MoveSpider_SlideFourTiles() {
+        $this->gameController->playPiece('Q', '0,0');
+        $this->gameController->playPiece('Q', '-1,0');
+        $this->gameController->playPiece('B', '1,0');
+        $this->gameController->playPiece('B', '-2,0');
+        $this->gameController->playPiece('S', '1,-1');
+        $this->gameController->playPiece('B', '-3,0');
+        $this->gameController->movePiece('1,-1', '-3,-1');
 
-    }
-
-//    Check if spider can slide to a tile where he already has been, should not be possible
-    public function test_MoveSpider_SlideToTileWhereHeIsBeenBefore() {
-
+        $this->assertArrayNotHasKey('-3,-1', $this->gameController->getBoard());
     }
 }
