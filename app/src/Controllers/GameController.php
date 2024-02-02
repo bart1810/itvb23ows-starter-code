@@ -44,17 +44,79 @@ class GameController {
         return $to;
     }
 
+//  Helper function for tests
+    public function currentPlayerPlayerPositions(): array {
+        $player = $this->playerController->getPlayer();
+        $board = $this->getBoard();
+
+        $positions = [];
+
+        foreach ($board as $pos => $tiles) {
+            if (end($tiles)[0] == $player) {
+                $positions[] = $pos;
+            }
+        }
+        return $positions;
+    }
+
     public function playerOwnsTile($board, $player, $from): bool {
         return $board[$from][count($board[$from])-1][0] == $player;
     }
 
+    public function endOfGameFor($player): bool {
+        $board = $this->getBoard();
+
+        foreach ($board as $pos => $tiles) {
+            $endTile = end($tiles);
+
+            $neighbours = [];
+            $b = explode(',', $pos);
+
+            foreach ($this->offsets as $pq) {
+                $p = $b[0] + $pq[0];
+                $q = $b[1] + $pq[1];
+
+                $position = $p.",".$q;
+
+                if (isset($board[$position]) && $this->isNeighbour($pos, $position)) {
+                    $neighbours[] = $position;
+                }
+            }
+
+            if ($endTile[0] == $player && $endTile[1] == 'Q' && count($neighbours) == 6) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
     public function pass(): void {
-        $this->database->passTurn();
-        $this->database->setLastMove($this->database->getInsertID());
+        $player = $this->playerController->getPlayer();
+        $deck = $this->playerController->getDeck()[$player];
 
+        foreach ($this->getToPositions() as $to) {
+            foreach ($deck as $piece => $amount) {
+                if ($amount > 0 && $this->isValidPlay($piece, $to)) {
+                    $this->errorController->setError("There is a play possible, can't pass");
+                    return;
+                }
+            }
+        }
+        foreach ($this->getBoard() as $pos => $tiles) {
+            $topTile = end($tiles);
+
+            if ($topTile[0] == $player) {
+                foreach ($this->getToPositions() as $to) {
+                    if ($this->isValidMove($pos, $to)) {
+                        $this->errorController->setError("There is a move possible, can't pass");
+                        return;
+                    }
+                }
+            }
+        }
+        $this->database->movePiece(null, null);
         $this->playerController->switchPlayer();
-
-
     }
 
     public function playPiece($piece, $to): void {
@@ -127,22 +189,28 @@ class GameController {
 
         if (!isset($board[$from])) {
             $this->errorController->setError("Board position is empty");
-        } elseif ($from == $to) {
+        }
+        elseif ($from == $to) {
             $this->errorController->setError("Tile must move");
-        } elseif (!$this->playerOwnsTile($board, $player, $from)) {
+        }
+        elseif (!$this->playerOwnsTile($board, $player, $from)) {
             $this->errorController->setError("Tile is not owned by player");
-        } elseif ($deck['Q']) {
+        }
+        elseif ($deck['Q']) {
             $this->errorController->setError("Queen bee is not played");
-        } else {
+        }
+        else {
             $tile = array_pop($board[$from]);
             unset($board[$from]);
 
-            if (!$this->hasNeighbour($to, $board) || $this->isNotAttachedTo()) {
+            if (!$this->hasNeighbour($to, $board) || $this->isNotAttachedToHive()) {
                 $this->errorController->setError("Move would split hive");
-            } elseif (isset($board[$to]) && $tile[1] != "B") {
+            }
+            elseif (isset($board[$to]) && $tile[1] != "B") {
                 $this->errorController->setError("Tile not empty");
-            } elseif ((($tile[1] == "Q" || $tile[1] == "B") && !$this->slide($from, $to))
-            ) {
+            }
+            elseif ((($tile[1] == "Q" || $tile[1] == "B") && !$this->slide($from, $to)) || ($tile[1] == "G" && !$this->slideForGrasshopper($from, $to)) ||
+                ($tile[1] == "A" && !$this->slideForAntSoldier($from, $to)) || $tile[1] == 'S' && !$this->slideForSpider($from, $to)) {
                 $this->errorController->setError("Tile must slide");
             } else {
                 return true;
@@ -151,7 +219,7 @@ class GameController {
         return false;
     }
 
-    private function isNotAttachedTo(): array {
+    private function isNotAttachedToHive(): array {
         $board = $this->getBoard();
 
         $all = array_keys($board);
@@ -177,11 +245,8 @@ class GameController {
         $a = explode(',', $a);
         $b = explode(',', $b);
 
-        if (
-            $a[0] == $b[0] && abs($a[1] - $b[1]) == 1 ||
-            $a[1] == $b[1] && abs($a[0] - $b[0]) == 1 ||
-            $a[0] + $a[1] == $b[0] + $b[1]
-        ) {
+        if ($a[0] == $b[0] && abs($a[1] - $b[1]) == 1 || $a[1] == $b[1] &&
+            abs($a[0] - $b[0]) == 1 || $a[0] + $a[1] == $b[0] + $b[1]) {
             return true;
         }
 
@@ -226,7 +291,6 @@ class GameController {
         return $tile ? count($tile) : 0;
     }
 
-    // Give from and to, and return if move of one position is allowed
     private function slide($from, $to): bool {
         $board = $this->getBoard();
 
@@ -252,5 +316,161 @@ class GameController {
 
         return min($this->len($board[$common[0]] ?? 0), $this->len($board[$common[1]] ?? 0))
             <= max($this->len($board[$from] ?? 0), $this->len($board[$to] ?? 0));
+    }
+
+    public function slideForGrasshopper($from, $to): bool {
+        $board = $this->getBoard();
+
+        if ($from == $to) {
+            $this->errorController->setError("Grasshopper can't jump to the same place as he is standing on");
+            return false;
+        }
+
+        $a = explode(',', $from);
+        $b = explode(',', $to);
+
+        $jumpDirection = $this->getJumpDirection($a, $b);
+
+        if ($jumpDirection == null) {
+            return false;
+        }
+
+        $p = $a[0] + $jumpDirection[0];
+        $q = $a[1] + $jumpDirection[1];
+
+        $pos = $p.",".$q;
+
+        if (!isset($board[$pos])) {
+            return false;
+        }
+
+        while (isset($board[$pos])) {
+            $p += $jumpDirection[0];
+            $q += $jumpDirection[1];
+
+            $pos = $p . "," . $q;
+        }
+
+        if ($pos == $to) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function slideForAntSoldier($from, $to): bool {
+        $board = $this->getBoard();
+
+        if ($from == $to) {
+            $this->errorController->setError("Soldier ant can't slide on the same place");
+            return false;
+        }
+
+        foreach(array_keys($board) as $b) {
+            if ($this->hasNeighbour($to, $b)) {
+                continue;
+            } else {
+                return false;
+            }
+        }
+        unset($board[$from]);
+
+        $visited = [];
+        $tiles = array($from);
+
+        while (!empty($tiles)) {
+            $currentTile = array_shift($tiles);
+
+            if (!in_array($currentTile, $visited)) {
+                $visited[] = $currentTile;
+            }
+
+            $b = explode(',', $currentTile);
+
+            foreach ($this->offsets as $pq) {
+                $p = $b[0] + $pq[0];
+                $q = $b[1] + $pq[1];
+
+                $pos = $p.",".$q;
+
+                if (!in_array($pos, $visited) && !isset($board[$pos]) && $this->hasNeighbour($pos, $board)) {
+                    if ($pos == $to) {
+                        return true;
+                    }
+                    $tiles[] = $pos;
+                }
+            }
+        }
+        return false;
+    }
+
+    public function slideForSpider($from, $to): bool {
+        $board = $this->getBoard();
+        unset($board[$from]);
+        if ($from == $to) {
+            return false;
+        }
+
+        $visited = [];
+        $tiles = array($from);
+        $tiles[] = null;
+
+        $previousTile = null;
+        $takenSteps = 0;
+
+        while (!empty($tiles) && $takenSteps < 3) {
+            $currentTile = array_shift($tiles);
+
+            if ($currentTile == null) {
+                $takenSteps++;
+                $tiles[] = null;
+                if (reset($tiles) == null) {
+                    break;
+                } else {
+                    continue;
+                }
+            }
+
+            if (!in_array($currentTile, $visited)) {
+                $visited[] = $currentTile;
+            }
+
+            $b = explode(',', $currentTile);
+
+            foreach ($this->offsets as $pq) {
+                $p = $b[0] + $pq[0];
+                $q = $b[1] + $pq[1];
+
+                $pos = $p.",".$q;
+
+                if (!in_array($pos, $visited) && $pos != $previousTile && !isset($board[$pos]) && $this->hasNeighbour($pos, $board)) {
+//                  variable takenSteps is two because it starts at 0
+                    if ($pos == $to && $takenSteps == 2) {
+                        return true;
+                    }
+                    $tiles[] = $pos;
+                }
+            }
+
+            $previousTile = $currentTile;
+        }
+
+        return false;
+    }
+
+    private function getJumpDirection($a, $b): array | null {
+
+        if ($a[0] == $b[0]) {
+            return $b[1] > $a[1] ? [0, 1] : [0, -1];
+        }
+        elseif ($a[1] == $b[1]) {
+            return $b[0] > $a[0] ? [1, 0] : [-1, 0];
+        }
+        elseif (abs($a[0] - $a[1]) == abs($b[0] - $b[1])) {
+            return $b[1] > $a[1] ? [-1, 1] : [1, -1];
+        }
+        else {
+            return null;
+        }
     }
 }

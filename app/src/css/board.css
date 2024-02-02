@@ -6,3 +6,8 @@ div.board {
     overflow: scroll;
     position: relative;
 }
+
+div.the-end {
+    font-size: 16px;
+    font-weight: 800;
+}

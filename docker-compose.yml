@@ -9,8 +9,6 @@ services:
       - "8000:80"
     depends_on:
       - db
-    volumes:
-      - /var/www/html/
   db:
     build: ./database/
     container_name: mysql_container
@@ -23,7 +21,6 @@ services:
       MYSQL_ROOT_USER: 'root'
       MYSQL_ROOT_PASSWORD: 'Incognito153!'
     ports:
-      # <Port exposed> : <MySQL Port running inside container>
       - '9906:3306'
   jenkins:
     container_name: jenkins_container
