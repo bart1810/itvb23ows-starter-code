@@ -17,7 +17,7 @@ pipeline {
             steps {
                 echo "Building application.."
                 echo "Build ID is ${BUILD_ID}"
-                sh "docker-compose up -d app"
+                sh "docker-compose up --build -d "
                 echo "Application build"
             }
         }

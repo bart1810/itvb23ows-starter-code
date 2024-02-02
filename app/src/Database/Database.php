@@ -1,28 +1,20 @@
 <?php
 
 namespace Database;
+use Controllers\PlayerController;
 use mysqli;
 
 class Database {
     private mysqli $database;
+    private PlayerController $playerController;
 
     public function __construct() {
         $this->database = new mysqli('db', 'root', 'Incognito153!', 'hive');
+        $this->playerController = new PlayerController();
     }
 
     public function getState(): string {
         return serialize([$_SESSION['hand'], $_SESSION['board'], $_SESSION['player']]);
-    }
-
-    public function undo(): void {
-        $lastMove = $this->getLastMove();
-
-        $stmt = $this->database->prepare('SELECT * FROM moves WHERE id = '.$lastMove);
-        $stmt->execute();
-
-        $result = $stmt->get_result()->fetch_array();
-        $this->setLastMove($result[5]);
-        $this->setState($result[6]);
     }
 
     public function setState($state): void {
@@ -34,6 +26,51 @@ class Database {
 
     public function getGameId() {
         return $_SESSION['game_id'] ?? null;
+    }
+
+    public function getMove($moveId): false|\mysqli_result {
+        $stmt = $this->database->prepare('SELECT * FROM moves WHERE id = ?');
+
+        $stmt->bind_param("s", $moveId);
+        $stmt->execute();
+
+        return $stmt->get_result();
+    }
+
+    public function undo(): void {
+        $lastMove = $this->getLastMove();
+        $gameId = $this->getGameId();
+
+        if ($lastMove === null) {
+            $stmt = $this->database->prepare('DELETE FROM moves WHERE game_id = ?');
+
+            $stmt->bind_param("s", $gameId);
+            $stmt->execute();
+            return;
+        }
+
+        $prevMove = $this->getMove($lastMove)->fetch_array()[5];
+
+        if ($prevMove == null) {
+            $stmt = $this->database->prepare('DELETE FROM moves WHERE game_id = ?');
+
+            $stmt->bind_param("s", $gameId);
+            $stmt->execute();
+
+            $this->restartGame();
+            return;
+        }
+
+        $stmt = $this->database->prepare('DELETE FROM moves WHERE id = ?');
+
+        $stmt->bind_param("s", $lastMove);
+        $stmt->execute();
+
+        $this->setLastMove($prevMove);
+
+        $this->setState($this->getMove($prevMove)->fetch_array()[6]);
+
+        $this->playerController->switchPlayer();
     }
 
     public function printMoves(): void {
@@ -52,16 +89,6 @@ class Database {
 
     public function setLastMove($move): void {
         $_SESSION['last_move'] = $move;
-    }
-
-    public function passTurn(): void {
-        $state = $this->getState();
-        $gameId = $this->getGameId();
-        $lastMove = $this->getLastMove();
-
-        $stmt = $this->database->prepare('insert into moves (game_id, type, move_from, move_to, previous_id, state) values (?, "pass", null, null, ?, ?)');
-        $stmt->bind_param('iis', $gameId, $lastMove, $state);
-        $stmt->execute();
     }
 
     public function movePiece($from, $to): void {

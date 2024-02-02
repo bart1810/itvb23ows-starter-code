@@ -76,6 +76,22 @@ $to = $gameController->getToPositions();
     <link rel="stylesheet" href="./css/util.css">
 </head>
 <body>
+<div class="the-end">
+    <?php
+    $endForPlayerOne = $gameController->endOfGameFor(0);
+    $endForPlayerTwo = $gameController->endOfGameFor(1);
+
+    if ($endForPlayerOne && $endForPlayerTwo) {
+        echo "Het is gelijkspel geworden";
+    } else {
+        if ($endForPlayerOne) {
+            echo "Zwart heeft gewonnen, gefeliciteerd";
+        } elseif ($endForPlayerTwo) {
+            echo "Wit heeft gewonnen, gefeliciteerd";
+        }
+    }
+    ?>
+</div>
 <div class="board">
     <?php
     $min_p = 1000;
