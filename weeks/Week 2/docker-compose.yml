@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  php_app:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    container_name: php_container
+    image: php:8.2-apache
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/var/www/html/
+    depends_on:
+      - db
+  db:
+    container_name: mysql_container
+    image: mysql:5.7
+    restart: always
+    volumes:
+      - /var/lib/mysql
+    environment:
+      MYSQL_DATABASE: 'hive'
+      MYSQL_ROOT_USER: 'root'
+      MYSQL_ROOT_PASSWORD: 'Incognito153!'
+      MYSQL_ALLOW_EMPTY_PASSWORD: yes
+    ports:
+      # <Port exposed> : <MySQL Port running inside container>
+      - '9906:3306'
